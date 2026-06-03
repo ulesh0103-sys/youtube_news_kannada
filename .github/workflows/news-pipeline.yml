@@ -1,0 +1,149 @@
+# =============================================================================
+# YouTube News Automation — GitHub Actions Workflow
+# =============================================================================
+# Runs the Kannada news pipeline 6 times daily on GitHub's free servers.
+# Your laptop can be completely switched off.
+#
+# Cron times are in UTC. IST = UTC + 5:30
+# Pipeline triggers 2.5 hours before publish time to allow processing.
+#
+# Slot 1 (Morning)   : Publish 08:00 IST → Trigger 05:30 IST → 00:00 UTC
+# Slot 2 (Mid-morning): Publish 11:00 IST → Trigger 08:30 IST → 03:00 UTC
+# Slot 3 (Afternoon)  : Publish 13:30 IST → Trigger 11:00 IST → 05:30 UTC
+# Slot 4 (Evening)    : Publish 17:00 IST → Trigger 14:30 IST → 09:00 UTC
+# Slot 5 (Prime Time) : Publish 20:00 IST → Trigger 17:30 IST → 12:00 UTC
+# Slot 6 (Night)      : Publish 22:30 IST → Trigger 20:00 IST → 14:30 UTC
+# =============================================================================
+
+name: YouTube News Pipeline
+
+on:
+  # ⏰ Scheduled runs (6 times daily)
+  schedule:
+    - cron: '0 0 * * *'     # Slot 1: 00:00 UTC = 05:30 IST
+    - cron: '0 3 * * *'     # Slot 2: 03:00 UTC = 08:30 IST
+    - cron: '30 5 * * *'    # Slot 3: 05:30 UTC = 11:00 IST
+    - cron: '0 9 * * *'     # Slot 4: 09:00 UTC = 14:30 IST
+    - cron: '0 12 * * *'    # Slot 5: 12:00 UTC = 17:30 IST
+    - cron: '30 14 * * *'   # Slot 6: 14:30 UTC = 20:00 IST
+
+  # 🖱️ Manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Slot number (1-6) or "all"'
+        required: true
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+          - '6'
+          - 'all'
+      dry_run:
+        description: 'Test mode (no YouTube upload)?'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hour max (pipeline takes ~60 min)
+
+    steps:
+      # ---- Checkout code ----
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      # ---- Python setup ----
+      - name: 🐍 Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'  # Cache pip packages for faster installs
+
+      # ---- Install dependencies ----
+      - name: 📦 Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ---- Verify FFmpeg ----
+      - name: 🎬 Verify FFmpeg
+        run: |
+          ffmpeg -version | head -1
+          ffprobe -version | head -1
+
+      # ---- Restore YouTube OAuth token ----
+      - name: 🔑 Restore YouTube OAuth token
+        run: echo "${{ secrets.YOUTUBE_TOKEN_PICKLE }}" | base64 -d > token.pickle
+
+      # ---- Restore YouTube client secrets ----
+      - name: 🔑 Restore YouTube client secrets
+        run: echo '${{ secrets.YOUTUBE_CLIENT_SECRETS }}' > client_secrets.json
+
+      # ---- Determine which slot to run ----
+      - name: 🎯 Determine slot number
+        id: slot
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger — use the user's choice
+            SLOT="${{ github.event.inputs.slot }}"
+            DRY_RUN="${{ github.event.inputs.dry_run }}"
+          else
+            # Scheduled trigger — map UTC hour to slot number
+            HOUR=$(date -u +%H)
+            MIN=$(date -u +%M)
+            
+            case "${HOUR}:${MIN}" in
+              00:0*) SLOT=1 ;;  # 00:00 UTC
+              03:0*) SLOT=2 ;;  # 03:00 UTC
+              05:3*) SLOT=3 ;;  # 05:30 UTC
+              09:0*) SLOT=4 ;;  # 09:00 UTC
+              12:0*) SLOT=5 ;;  # 12:00 UTC
+              14:3*) SLOT=6 ;;  # 14:30 UTC
+              *)
+                echo "⚠️ Unexpected trigger time ${HOUR}:${MIN} UTC. Defaulting to slot 1."
+                SLOT=1
+                ;;
+            esac
+            DRY_RUN="false"
+          fi
+          
+          echo "slot=$SLOT" >> $GITHUB_OUTPUT
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
+          echo "📰 Running slot: $SLOT (dry_run=$DRY_RUN)"
+
+      # ---- Run the pipeline ----
+      - name: 🚀 Run news pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          CI: 'true'
+        run: |
+          SLOT="${{ steps.slot.outputs.slot }}"
+          DRY_RUN="${{ steps.slot.outputs.dry_run }}"
+          
+          if [ "$SLOT" = "all" ]; then
+            CMD="python main.py --all"
+          else
+            CMD="python main.py --slot $SLOT"
+          fi
+          
+          if [ "$DRY_RUN" = "true" ]; then
+            CMD="$CMD --test"
+          fi
+          
+          echo "▶️ Executing: $CMD"
+          $CMD
+
+      # ---- Upload logs as artifact (for debugging) ----
+      - name: 📋 Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 7

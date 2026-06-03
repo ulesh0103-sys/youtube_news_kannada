@@ -1,0 +1,42 @@
+# =============================================================================
+# YouTube News Automation — .gitignore
+# =============================================================================
+
+# ---- Secrets (stored as GitHub Secrets instead) ----
+token.pickle
+client_secrets.json
+.env
+
+# ---- Pipeline output (generated at runtime) ----
+output/
+temp/
+logs/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# ---- Virtual environments ----
+venv/
+.venv/
+env/
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Test files ----
+test_voice.mp3

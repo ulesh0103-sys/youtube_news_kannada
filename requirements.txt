@@ -1,0 +1,29 @@
+# =============================================================================
+# YouTube News Automation Pipeline — Python Dependencies
+# =============================================================================
+# Install with:  pip install -r requirements.txt
+# =============================================================================
+
+# --- Text-to-Speech ---
+edge-tts                    # Microsoft Edge TTS (Kannada + English voices)
+
+# --- Google Gemini AI ---
+google-generativeai         # Google Generative AI SDK (Gemini 2.0 Flash)
+
+# --- YouTube Data API ---
+google-api-python-client    # Google API client library
+google-auth-oauthlib        # OAuth2 authentication flow
+google-auth-httplib2        # HTTP/2 transport for Google Auth
+
+# --- RSS / News Scraping ---
+feedparser                  # Universal RSS/Atom feed parser
+
+# --- Image Processing ---
+Pillow                      # Image manipulation (thumbnails, overlays)
+
+# --- HTTP ---
+requests                    # Synchronous HTTP client
+aiohttp                     # Asynchronous HTTP client
+
+# --- Date/Time Utilities ---
+python-dateutil             # Flexible date/time parsing and manipulation
