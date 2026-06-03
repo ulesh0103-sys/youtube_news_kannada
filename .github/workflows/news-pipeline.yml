@@ -71,8 +71,10 @@ jobs:
         run: pip install -r requirements.txt
 
       # ---- Setup FFmpeg ----
-      - name: 🎬 Set up FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
+      - name: 🎬 Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       # ---- Verify FFmpeg ----
       - name: 🎬 Verify FFmpeg
