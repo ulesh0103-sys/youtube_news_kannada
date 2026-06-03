@@ -20,6 +20,19 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
+# Load local .env file if it exists (for local laptop runs)
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+if os.path.exists(env_path):
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip() and not line.strip().startswith("#"):
+                    parts = line.strip().split("=", 1)
+                    if len(parts) == 2:
+                        os.environ[parts[0].strip()] = parts[1].strip()
+    except Exception as e:
+        pass
+
 # =============================================================================
 # API KEYS & CREDENTIALS
 # =============================================================================

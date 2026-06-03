@@ -26,6 +26,8 @@ import random
 import tempfile
 import shutil
 import glob
+import asyncio
+from voice_generator import VoiceGenerator
 
 try:
     import config
@@ -371,32 +373,9 @@ class VideoAssembler:
         subtitle_path: str = None,
     ) -> str:
         """
-        Assemble the final video from all components.
-
-        This is the main orchestration method that combines all elements
-        into a finished, YouTube-ready video.
-
-        Args:
-            audio_path: Path to the narration audio (MP3).
-            script_data: Dict with keys:
-                - 'title': str, video title
-                - 'sections': list of dicts, each with:
-                    - 'headline': str
-                    - 'broll_keywords': list of str
-                    - 'duration': float (seconds, optional)
-            output_path: Path for the final output MP4.
-            subtitle_path: Optional path to SRT subtitle file.
-
-        Returns:
-            Absolute path to the final assembled video.
-
-        Raises:
-            FileNotFoundError: If audio file doesn't exist.
-            RuntimeError: If FFmpeg processing fails.
+        Assemble the final video from all components, ensuring each section's 
+        visuals (B-roll) and subtitle overlays exactly match its audio narration.
         """
-        if not os.path.exists(audio_path):
-            raise FileNotFoundError(f"Audio file not found: {audio_path}")
-
         os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
         # Create a unique temp directory for this assembly
@@ -404,109 +383,124 @@ class VideoAssembler:
         os.makedirs(assembly_temp, exist_ok=True)
 
         try:
-            # ── Step 1: Get audio duration ────────────────────────────────
-            total_duration = self._get_audio_duration(audio_path)
-            logger.info("Audio duration: %.1f seconds", total_duration)
-
             sections = script_data.get("sections", [])
             title = script_data.get("title", "News Update")
-
-            # ── Step 2: Download B-roll clips ─────────────────────────────
-            all_broll = []
-            broll_dir = os.path.join(assembly_temp, "broll")
-            os.makedirs(broll_dir, exist_ok=True)
-
+            
+            logger.info("Starting section-by-section video assembly for %d sections...", len(sections))
+            
+            # Initialize VoiceGenerator for section-level audio/subtitle generation
+            voice_gen = VoiceGenerator(language="kannada")
+            
+            section_videos = []
+            
             for i, section in enumerate(sections):
+                name = section.get("name", f"section_{i}")
+                narration_text = section.get("narration", "").strip()
+                headline = section.get("headline", f"Section {i + 1}").strip()
                 keywords = section.get("broll_keywords", [])
+                
+                logger.info("Processing section %d/%d: name=%s, headline='%s'", i+1, len(sections), name, headline)
+                
+                if not narration_text:
+                    logger.warning("Section %d has no narration text. Skipping.", i)
+                    continue
+                
+                # 1. Generate audio and subtitles for this section
+                sec_audio_path = os.path.join(assembly_temp, f"sec_audio_{i}.mp3")
+                sec_srt_path = os.path.join(assembly_temp, f"sec_audio_{i}.srt")
+                
+                logger.info("Generating TTS and SRT for section %d...", i)
+                asyncio.run(voice_gen.generate_with_subtitles(narration_text, sec_audio_path, sec_srt_path))
+                
+                # 2. Get the duration of this section's narration
+                sec_duration = self._get_audio_duration(sec_audio_path)
+                logger.info("Section %d duration: %.2f seconds", i, sec_duration)
+                
+                # 3. Search and download B-roll for this section
+                sec_broll_dir = os.path.join(assembly_temp, f"broll_sec_{i}")
+                os.makedirs(sec_broll_dir, exist_ok=True)
+                
+                clips = []
                 if keywords:
                     clips = self.broll_downloader.get_broll_for_section(
-                        keywords, broll_dir, count=2
+                        keywords, sec_broll_dir, count=2
                     )
-                    all_broll.extend(clips)
-
-            # ── Step 3: Create visual track ───────────────────────────────
-            if all_broll:
-                # Concatenate B-roll and loop to match audio duration
-                concat_path = os.path.join(assembly_temp, "broll_concat.mp4")
-                self._concat_videos(all_broll, concat_path)
-
-                video_base = os.path.join(assembly_temp, "video_base.mp4")
-                self._loop_video_to_duration(concat_path, total_duration, video_base)
-            else:
-                # No B-roll: create solid color background with title text
-                logger.warning("No B-roll available. Creating solid background.")
-                video_base = os.path.join(assembly_temp, "video_base.mp4")
-                self._create_title_card(title, total_duration, video_base)
-
-            # ── Step 4: Create section title cards ────────────────────────
-            title_cards = []
-            for i, section in enumerate(sections):
-                headline = section.get("headline", f"Section {i + 1}")
-                card_duration = min(4.0, total_duration / max(len(sections), 1))
-                card_path = os.path.join(assembly_temp, f"title_card_{i}.mp4")
-                self._create_title_card(headline, card_duration, card_path)
-                title_cards.append(card_path)
-
-            # ── Step 5: Overlay audio narration ───────────────────────────
-            video_with_audio = os.path.join(assembly_temp, "with_audio.mp4")
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", video_base,
-                "-i", audio_path,
-                "-c:v", "libx264",
-                "-c:a", "aac",
-                "-b:a", "192k",
-                "-shortest",
-                "-movflags", "+faststart",
-                video_with_audio,
-            ]
-            self._run_ffmpeg(cmd, "overlay audio")
-            current_video = video_with_audio
-
-            # ── Step 6: Add lower-third overlays for headlines ────────────
-            if sections:
-                time_per_section = total_duration / len(sections)
-                for i, section in enumerate(sections):
-                    headline = section.get("headline", "")
-                    if headline:
-                        lt_output = os.path.join(
-                            assembly_temp, f"lower_third_{i}.mp4"
-                        )
-                        start_time = i * time_per_section + 1.0  # 1s delay
-                        duration = min(5.0, time_per_section - 2.0)
-                        if duration > 1.0:
-                            self._add_lower_third(
-                                current_video, headline,
-                                start_time, duration, lt_output
-                            )
-                            current_video = lt_output
-
-            # ── Step 7: Add background music (if available) ───────────────
+                
+                # 4. Create visual track for this section matching the duration
+                sec_video_base = os.path.join(assembly_temp, f"sec_base_{i}.mp4")
+                if clips:
+                    concat_sec_path = os.path.join(assembly_temp, f"sec_concat_{i}.mp4")
+                    self._concat_videos(clips, concat_sec_path)
+                    self._loop_video_to_duration(concat_sec_path, sec_duration, sec_video_base)
+                else:
+                    logger.warning("No B-roll clips downloaded for section %d. Creating title card.", i)
+                    self._create_title_card(headline, sec_duration, sec_video_base)
+                
+                current_sec_video = sec_video_base
+                
+                # 5. Overlay section headline banner (lower-third)
+                if headline:
+                    lt_output = os.path.join(assembly_temp, f"sec_lt_{i}.mp4")
+                    # Display lower-third starting at 0.5s until 0.5s before the section ends
+                    start_time = 0.5
+                    duration = max(1.0, sec_duration - 1.0)
+                    self._add_lower_third(
+                        current_sec_video, headline,
+                        start_time, duration, lt_output
+                    )
+                    current_sec_video = lt_output
+                
+                # 6. Burn subtitles into the section video
+                if os.path.exists(sec_srt_path):
+                    sub_output = os.path.join(assembly_temp, f"sec_subs_{i}.mp4")
+                    self._add_subtitles(current_sec_video, sec_srt_path, sub_output)
+                    current_sec_video = sub_output
+                
+                # 7. Merge the section audio narration with the visual track
+                sec_final = os.path.join(assembly_temp, f"sec_final_{i}.mp4")
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", current_sec_video,
+                    "-i", sec_audio_path,
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-shortest",
+                    sec_final,
+                ]
+                self._run_ffmpeg(cmd, f"merge audio for section {i}")
+                
+                section_videos.append(sec_final)
+            
+            if not section_videos:
+                raise RuntimeError("No section videos were generated.")
+            
+            # 8. Concatenate all section videos together
+            concat_path = os.path.join(assembly_temp, "final_concat_no_music.mp4")
+            self._concat_section_videos(section_videos, concat_path)
+            
+            current_video = concat_path
+            
+            # 9. Add background music across the entire concatenated video
             music_path = os.path.join(
                 self.paths.get("assets", "assets/"), "background_music.mp3"
             )
             if os.path.exists(music_path):
-                music_output = os.path.join(assembly_temp, "with_music.mp4")
+                music_output = os.path.join(assembly_temp, "final_with_music.mp4")
                 self._mix_audio(current_video, music_path, music_output, 0.15)
                 current_video = music_output
             else:
                 logger.info("No background music found at: %s (skipping)", music_path)
-
-            # ── Step 8: Add subtitles (if provided) ───────────────────────
-            if subtitle_path and os.path.exists(subtitle_path):
-                sub_output = os.path.join(assembly_temp, "with_subs.mp4")
-                self._add_subtitles(current_video, subtitle_path, sub_output)
-                current_video = sub_output
-
-            # ── Step 9: Final output copy ─────────────────────────────────
+            
+            # 10. Copy to the final output path
             if current_video != output_path:
                 shutil.copy2(current_video, output_path)
-
-            logger.info("✓ Final video assembled: %s", output_path)
+            
+            logger.info("✓ Final aligned video assembled: %s", output_path)
             return os.path.abspath(output_path)
-
+            
         finally:
-            # ── Cleanup temp files ────────────────────────────────────────
+            # Cleanup temp files
             try:
                 shutil.rmtree(assembly_temp, ignore_errors=True)
                 logger.info("Cleaned up temp directory: %s", assembly_temp)
@@ -720,6 +714,38 @@ class VideoAssembler:
             for npath in normalized:
                 if os.path.exists(npath):
                     os.remove(npath)
+        except OSError:
+            pass
+
+        return output_path
+
+    def _concat_section_videos(self, video_list: list, output_path: str) -> str:
+        """
+        Concatenate finished section videos (with audio and subtitles) using FFmpeg concat demuxer.
+        """
+        if not video_list:
+            raise ValueError("Cannot concatenate empty video list.")
+
+        concat_file = output_path + ".concat.txt"
+        with open(concat_file, "w", encoding="utf-8") as f:
+            for video_path in video_list:
+                safe_path = os.path.abspath(video_path).replace("\\", "/").replace("'", "'\\''")
+                f.write(f"file '{safe_path}'\n")
+
+        # Concatenate using concat demuxer, preserving audio and video stream
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_file,
+            "-c", "copy",  # Direct stream copy (no re-encoding, extremely fast!)
+            output_path,
+        ]
+
+        self._run_ffmpeg(cmd, "concatenate section videos")
+
+        try:
+            os.remove(concat_file)
         except OSError:
             pass
 

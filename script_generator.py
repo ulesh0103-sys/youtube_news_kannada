@@ -258,6 +258,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
     "sections": [
         {{
             "name": "intro",
+            "headline": "Short punchy introduction headline in Kannada",
             "duration_seconds": 40,
             "narration": "Engaging intro narration in Kannada greeting viewers, mentioning the date and bulletin name. Set the tone for the bulletin.",
             "visual_cue": "Channel logo animation, date overlay, anchor intro graphics",
@@ -265,6 +266,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
         }},
         {{
             "name": "karnataka",
+            "headline": "Short punchy Karnataka news headline in Kannada",
             "duration_seconds": 180,
             "narration": "Detailed coverage of 2-3 Karnataka stories in Kannada. Each story should have a clear transition. Include facts, quotes if available, and context.",
             "visual_cue": "Maps of Karnataka, relevant location shots, government buildings",
@@ -272,6 +274,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
         }},
         {{
             "name": "national",
+            "headline": "Short punchy national news headline in Kannada",
             "duration_seconds": 150,
             "narration": "Coverage of 2-3 national news stories in Kannada with smooth transitions between stories.",
             "visual_cue": "India map, Parliament, relevant city shots",
@@ -279,6 +282,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
         }},
         {{
             "name": "international",
+            "headline": "Short punchy international news headline in Kannada",
             "duration_seconds": 120,
             "narration": "Coverage of 1-2 international stories in Kannada, explaining global impact.",
             "visual_cue": "World map, relevant country visuals",
@@ -286,6 +290,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
         }},
         {{
             "name": "outro",
+            "headline": "Short punchy outro headline in Kannada",
             "duration_seconds": 30,
             "narration": "Sign-off in Kannada thanking viewers, asking to like-subscribe-share, and previewing next bulletin.",
             "visual_cue": "Subscribe button animation, channel logo, next bulletin time",
@@ -396,6 +401,7 @@ You MUST respond with ONLY a valid JSON object (no extra text, no markdown fence
 
         required_section_fields = [
             "name",
+            "headline",
             "narration",
             "visual_cue",
             "broll_keywords",
