@@ -40,6 +40,221 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY_SECONDS = 5  # base delay; doubles with each retry (exponential backoff)
 
+# =============================================================================
+# 30-DAY DEVOTIONAL CALENDAR FOR SLOT 6
+# =============================================================================
+DEVOTIONAL_CALENDAR = [
+    {
+        "day": 1,
+        "deity": "Krishna",
+        "title": "Krishna and Putana",
+        "focus": "How infant Krishna defeated the demon Putana disguised as a nurse. The power of divine innocence.",
+        "source": "Bhagavata Purana 10.6"
+    },
+    {
+        "day": 2,
+        "deity": "Shiva",
+        "title": "Shiva drinks the poison",
+        "focus": "During Samudra Manthan, Shiva swallows Halahala to save the universe. He is called Neelakantha.",
+        "source": "Vishnu Purana"
+    },
+    {
+        "day": 3,
+        "deity": "Rama",
+        "title": "Rama breaks the Shiva Dhanush",
+        "focus": "At Sita's swayamvara, Rama lifts and breaks the divine bow — and wins Sita's hand.",
+        "source": "Valmiki Ramayana, Bal Kand"
+    },
+    {
+        "day": 4,
+        "deity": "Devi",
+        "title": "Chamundeshwari kills Mahishasura",
+        "focus": "The fierce goddess battles the buffalo demon Mahishasura for 9 days and emerges victorious.",
+        "source": "Devi Mahatmya, Markandeya Purana"
+    },
+    {
+        "day": 5,
+        "deity": "Ganesh",
+        "title": "Ganesh and the moon's curse",
+        "focus": "Ganesh curses the moon for laughing at him. The story of humility and the origin of Chaturthi.",
+        "source": "Shiva Purana"
+    },
+    {
+        "day": 6,
+        "deity": "Krishna",
+        "title": "Govardhan Parvata",
+        "focus": "Krishna lifts the Govardhan hill with his little finger to protect villagers from Indra's wrath.",
+        "source": "Bhagavata Purana 10.25"
+    },
+    {
+        "day": 7,
+        "deity": "Hanuman",
+        "title": "Hanuman burns Lanka",
+        "focus": "After finding Sita, Hanuman allows Ravana's soldiers to set his tail on fire — then burns all of Lanka.",
+        "source": "Valmiki Ramayana, Sundara Kand"
+    },
+    {
+        "day": 8,
+        "deity": "Shiva",
+        "title": "Shiva and Parvati's marriage",
+        "focus": "The divine love story of Parvati's tapasya and Shiva finally accepting her as his eternal wife.",
+        "source": "Shiva Purana, Rudra Samhita"
+    },
+    {
+        "day": 9,
+        "deity": "Krishna",
+        "title": "Kaliya Mardana",
+        "focus": "Krishna tames the deadly serpent Kaliya in the Yamuna river — dancing on his hundred hoods.",
+        "source": "Bhagavata Purana 10.16"
+    },
+    {
+        "day": 10,
+        "deity": "Rama",
+        "title": "Shabari's berries",
+        "focus": "The devoted old woman Shabari offers half-eaten berries to Rama. He eats them with joy — love over ritual.",
+        "source": "Valmiki Ramayana, Aranya Kand"
+    },
+    {
+        "day": 11,
+        "deity": "Regional",
+        "title": "Renuka Devi of Saundatti",
+        "focus": "The powerful story of Yellamma / Renuka Devi — revered across Karnataka and Maharashtra.",
+        "source": "Karnataka folk tradition"
+    },
+    {
+        "day": 12,
+        "deity": "Krishna",
+        "title": "Sudama visits Dwarka",
+        "focus": "Poor Sudama brings only beaten rice for his friend Krishna. Krishna blesses him with unimaginable wealth.",
+        "source": "Bhagavata Purana 10.80"
+    },
+    {
+        "day": 13,
+        "deity": "Ganesh",
+        "title": "Ganesh and Kubera's feast",
+        "focus": "Ganesh eats all of Kubera's food, then eats Kubera himself. Only Shiva's earth calms him.",
+        "source": "Shiva Purana"
+    },
+    {
+        "day": 14,
+        "deity": "Shiva",
+        "title": "Shiva as Nataraja",
+        "focus": "The cosmic dance of Shiva — Tandava — destroying and creating the universe in one eternal rhythm.",
+        "source": "Shaiva Agamas"
+    },
+    {
+        "day": 15,
+        "deity": "Devi",
+        "title": "Lakshmi and the ocean of milk",
+        "focus": "How Goddess Lakshmi emerged from the churning of the ocean and chose Vishnu as her eternal companion.",
+        "source": "Vishnu Purana"
+    },
+    {
+        "day": 16,
+        "deity": "Krishna",
+        "title": "Arjuna's vishada and the Gita",
+        "focus": "On the Kurukshetra battlefield, Arjuna breaks down. Krishna speaks the 18 chapters of the Bhagavad Gita.",
+        "source": "Mahabharata, Bhishma Parva"
+    },
+    {
+        "day": 17,
+        "deity": "Hanuman",
+        "title": "Hanuman brings the Sanjeevani",
+        "focus": "Hanuman flies to the Himalayas to fetch the life-giving herb and saves Lakshmana's life.",
+        "source": "Valmiki Ramayana, Yuddha Kand"
+    },
+    {
+        "day": 18,
+        "deity": "Regional",
+        "title": "Chamundi of Mysuru",
+        "focus": "The story of Chamundeshwari, the fierce goddess atop Chamundi Hills — protector of Mysuru kingdom.",
+        "source": "Karnataka / Mysuru tradition"
+    },
+    {
+        "day": 19,
+        "deity": "Shiva",
+        "title": "Markandeya defeats death",
+        "focus": "The boy Markandeya holds Shiva's Lingam as Yama comes to take him. Shiva kicks Yama away — defeating death.",
+        "source": "Shiva Purana"
+    },
+    {
+        "day": 20,
+        "deity": "Krishna",
+        "title": "Draupadi's vastraharan",
+        "focus": "Draupadi calls out to Krishna in her hour of deepest shame. Krishna provides infinite cloth and saves her honor.",
+        "source": "Mahabharata, Sabha Parva"
+    },
+    {
+        "day": 21,
+        "deity": "Rama",
+        "title": "Jatayu fights Ravana",
+        "focus": "The old eagle king Jatayu battles Ravana alone to save Sita — losing his wings but never his dharma.",
+        "source": "Valmiki Ramayana, Aranya Kand"
+    },
+    {
+        "day": 22,
+        "deity": "Devi",
+        "title": "Saraswati and the origin of knowledge",
+        "focus": "How Saraswati was born, why she holds the veena and the book, and why she is worshipped before any learning.",
+        "source": "Brahma Vaivarta Purana"
+    },
+    {
+        "day": 23,
+        "deity": "Ganesh",
+        "title": "Ganesh writes the Mahabharata",
+        "focus": "Vyasa recites the Mahabharata and Ganesh writes it — with one condition that Vyasa must never pause.",
+        "source": "Mahabharata, Adi Parva"
+    },
+    {
+        "day": 24,
+        "deity": "Krishna",
+        "title": "Krishna and Kuchela",
+        "focus": "Same as Sudama — told in the South Indian tradition with regional details and Tamil Bhakti flavor.",
+        "source": "Bhagavata Purana / Alvar tradition"
+    },
+    {
+        "day": 25,
+        "deity": "Shiva",
+        "title": "Kannappa the hunter",
+        "focus": "A tribal hunter offers his own eyes to a Shiva Lingam when it bleeds. Shiva calls him his greatest devotee.",
+        "source": "Shaiva tradition / Skanda Purana"
+    },
+    {
+        "day": 26,
+        "deity": "Hanuman",
+        "title": "Hanuman shows Rama in his heart",
+        "focus": "Hanuman tears open his chest to show that Rama and Sita live inside his heart. The ultimate bhakti.",
+        "source": "Post-Ramayana tradition"
+    },
+    {
+        "day": 27,
+        "deity": "Regional",
+        "title": "Basavanna and Shiva's grace",
+        "focus": "The 12th century Karnataka saint Basavanna's devotion to Shiva and his Vachana movement.",
+        "source": "Karnataka Shaiva tradition"
+    },
+    {
+        "day": 28,
+        "deity": "Krishna",
+        "title": "Mirabai's devotion to Krishna",
+        "focus": "Mirabai drinks poison sent by her husband — it becomes nectar because of her love for Krishna.",
+        "source": "Bhakti tradition / Rajasthan"
+    },
+    {
+        "day": 29,
+        "deity": "Devi",
+        "title": "Durga and the 9 nights",
+        "focus": "The complete story of Navratri — 9 forms of Durga and the battles she fought each night.",
+        "source": "Devi Mahatmya / Markandeya Purana"
+    },
+    {
+        "day": 30,
+        "deity": "Krishna",
+        "title": "Krishna's final message",
+        "focus": "The last chapter of the Bhagavad Gita — Krishna's promise: I will carry what you lack and preserve what you have.",
+        "source": "Bhagavad Gita 9.22"
+    }
+]
 
 # =============================================================================
 # SCRIPT GENERATOR CLASS
@@ -147,6 +362,7 @@ class ScriptGenerator:
                 )
 
                 script = self._parse_response(raw_text)
+                script["slot_number"] = slot.get("slot_number", 1)
 
                 # Validate required fields
                 self._validate_script(script)
@@ -194,20 +410,10 @@ class ScriptGenerator:
     # PRIVATE METHODS
     # --------------------------------------------------------------------- #
 
-    def _build_prompt(self, news_data: dict, slot: dict) -> str:
-        """Construct the full prompt for Gemini with system instructions,
-        news data, and slot context.
-
-        Args:
-            news_data: Structured news data from scrape_news().
-            slot: Schedule slot dict from config.SCHEDULE_SLOTS.
-
-        Returns:
-            The complete prompt string.
-        """
-        today_str = datetime.now(config.IST).strftime("%d %B %Y, %A")
-
-        # Format news articles for the prompt
+    def _format_news_for_prompt(self, news_data: dict) -> str:
+        """Format news articles for the prompt."""
+        if not news_data:
+            return "No news articles available."
         news_sections = []
         for category in ("karnataka", "national", "international"):
             articles = news_data.get(category, [])
@@ -226,91 +432,158 @@ class ScriptGenerator:
                     f"   Keywords: {', '.join(article.get('keywords', []))}"
                 )
             news_sections.append("\n".join(section_lines))
+        return "\n\n".join(news_sections)
 
-        news_text = "\n\n".join(news_sections)
-
+    def _build_prompt(self, news_data: dict, slot: dict) -> str:
+        """Construct the full prompt for Gemini with system instructions,
+        news data, and slot context.
+        """
+        today_str = datetime.now(config.IST).strftime("%d %B %Y, %A")
+        slot_number = slot.get("slot_number", 1)
         target_duration = config.VIDEO_SETTINGS["target_duration_minutes"]
 
-        prompt = f"""You are a professional Kannada news anchor and scriptwriter for the YouTube channel "{config.CHANNEL_NAME}".
+        # Base instructions specifying JSON structure
+        base_instructions = f"""You are a professional Kannada content creator and scriptwriter for the YouTube channel "{config.CHANNEL_NAME}".
 
 ## YOUR TASK
-Write a complete news video script in **Kannada** for today's bulletin.
+Write a complete video script in **Kannada** for today's bulletin.
 
-## CONTEXT
-- **Date**: {today_str}
-- **Bulletin**: {slot['name']} — Slot {slot['slot_number']}
-- **Publish Time (IST)**: {slot['publish_time_ist']}
-- **Content Focus**: {slot['content_focus']}
-- **Title Template**: {slot['video_title_template']}
-- **Target Duration**: {target_duration} minutes (~{target_duration * 60} seconds of narration)
-
-## TODAY'S NEWS DATA
-
-{news_text}
-
-## OUTPUT FORMAT
-You MUST respond with ONLY a valid JSON object (no extra text, no markdown fences) with this exact structure:
-
+RESPOND WITH ONLY A VALID JSON OBJECT (no extra text, no markdown code fences). The structure MUST strictly match this output format:
 {{
-    "title": "Compelling video title in Kannada using the template: {slot['video_title_template']}",
-    "description": "SEO-optimized YouTube description in Kannada with key topics, hashtags, and a call-to-subscribe. 200-300 words.",
+    "title": "Compelling video title in Kannada",
+    "description": "SEO-optimized YouTube description in Kannada, 200-300 words with hashtags.",
     "tags": ["relevant", "Kannada", "tags", "for", "YouTube", "SEO", "at least 10 tags"],
     "sections": [
         {{
-            "name": "intro",
-            "headline": "Short punchy introduction headline in Kannada",
-            "duration_seconds": 40,
-            "narration": "Engaging intro narration in Kannada greeting viewers, mentioning the date and bulletin name. Set the tone for the bulletin.",
-            "visual_cue": "Channel logo animation, date overlay, anchor intro graphics",
-            "broll_keywords": ["news studio", "Karnataka"]
-        }},
-        {{
-            "name": "karnataka",
-            "headline": "Short punchy Karnataka news headline in Kannada",
-            "duration_seconds": 180,
-            "narration": "Detailed coverage of 2-3 Karnataka stories in Kannada. Each story should have a clear transition. Include facts, quotes if available, and context.",
-            "visual_cue": "Maps of Karnataka, relevant location shots, government buildings",
-            "broll_keywords": ["Karnataka", "Bengaluru"]
-        }},
-        {{
-            "name": "national",
-            "headline": "Short punchy national news headline in Kannada",
-            "duration_seconds": 150,
-            "narration": "Coverage of 2-3 national news stories in Kannada with smooth transitions between stories.",
-            "visual_cue": "India map, Parliament, relevant city shots",
-            "broll_keywords": ["India", "Delhi", "Parliament"]
-        }},
-        {{
-            "name": "international",
-            "headline": "Short punchy international news headline in Kannada",
-            "duration_seconds": 120,
-            "narration": "Coverage of 1-2 international stories in Kannada, explaining global impact.",
-            "visual_cue": "World map, relevant country visuals",
-            "broll_keywords": ["world news", "global"]
-        }},
-        {{
-            "name": "outro",
-            "headline": "Short punchy outro headline in Kannada",
-            "duration_seconds": 30,
-            "narration": "Sign-off in Kannada thanking viewers, asking to like-subscribe-share, and previewing next bulletin.",
-            "visual_cue": "Subscribe button animation, channel logo, next bulletin time",
-            "broll_keywords": ["subscribe", "news channel"]
+            "name": "section_name",
+            "headline": "Short punchy section title/headline in Kannada (max 6-8 words)",
+            "duration_seconds": 60,
+            "narration": "Narration text in Kannada for this section",
+            "visual_cue": "visual instructions/description for this section",
+            "broll_keywords": ["keyword1", "keyword2"]
         }}
     ],
-    "full_narration": "The COMPLETE narration text combining all sections, ready for text-to-speech. This must be natural-sounding Kannada suitable for a news anchor voice.",
-    "thumbnail_headline": "Short punchy headline in Kannada (max 6-8 words) for the video thumbnail. Must be attention-grabbing."
+    "full_narration": "The complete combined narration text of all sections",
+    "thumbnail_headline": "Short punchy headline in Kannada (max 6-8 words) for the video thumbnail"
 }}
 
-## IMPORTANT GUIDELINES
-1. ALL narration must be in **Kannada** (ಕನ್ನಡ). Use formal news Kannada.
-2. The total narration across all sections should approximately fill {target_duration} minutes when read aloud.
-3. Each section's narration should be detailed enough to fill its allocated duration.
-4. Include smooth transitions between stories (e.g., "ಈಗ ರಾಷ್ಟ್ರೀಯ ಸುದ್ದಿಗಳ ಕಡೆ ನೋಡೋಣ...").
-5. The description and tags can include both Kannada and English for SEO.
-6. The broll_keywords should be in English for stock footage search.
-7. Make the narration engaging, authoritative, and viewer-friendly.
-8. RESPOND WITH ONLY THE JSON — no explanation, no markdown code fences.
+IMPORTANT GUIDELINES:
+1. ALL narration, section titles, and description text must be in **Kannada** (ಕನ್ನಡ). Use formal and natural Kannada.
+2. The description and tags can include both Kannada and English for SEO.
+3. The broll_keywords MUST be in English for stock footage search (max 2-3 words per keyword).
 """
+
+        if slot_number == 1:
+            # Slot 1: Morning News
+            news_text = self._format_news_for_prompt(news_data)
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 1 — MORNING NEWS
+- **Reference Channels:** TV9 Kannada, Republic Bharat, NDTV India (breaking news, alert, urgent tone)
+- **Visual Cue Style:** Map layouts, official photos, news anchor desk visual cues.
+- **Narrative Style:** Active, breaking news reportage style.
+- **Narration Duration:** 5-8 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- The script must open with: "ನಮಸ್ಕಾರ, ಟೆಕ್ ಟೇಲ್ಸ್ ಗೆ ಸ್ವಾಗತ! ಈ ಹಾಗೆ ಇರುತ್ತೆ ಇವತ್ತಿನ ಪ್ರಧಾನ ಸಮಾಚಾರ..." (or equivalent Kannada translation for opening).
+- Include 3 to 5 distinct breaking news stories from the following data (prioritize political relevance, weather/disaster alerts, government policy, or major accidents/crimes).
+- The script must end with: "ಮತ್ತೆ ಸಿಗೋಣ ಟೆಕ್ ಟೇಲ್ಸ್ ನಲ್ಲಿ. ಲೈಕ್ ಮಾಡಿ, ಶೇರ್ ಮಾಡಿ!" (or equivalent Kannada translation).
+
+## TODAY'S NEWS DATA:
+{news_text}
+"""
+        elif slot_number == 2:
+            # Slot 2: Crime Thrillers
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 2 — CRIME THRILLERS
+- **Reference Channels:** Crime Tak, Savdhaan India, Vikatan Tamil (suspenseful, dark, dramatic recreation cues)
+- **Visual Cue Style:** Dark city alley at night, suspect silhouettes, crime scene drawings, police cars, courtroom.
+- **Narrative Style:** Suspenseful, slow, dramatic documentary-style storytelling. Building tension.
+- **Narration Duration:** 10-15 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- **Hook:** Start with a shocking moment or mystery opening (e.g., "ರಾತ್ರಿ 2 ಗಂಟೆಗೆ... ಒಂದು ಕಾಲ್ ಬಂತು..." style in Kannada).
+- **Background:** Introduce the victims, location, and suspects/characters involved.
+- **Crime:** Describe step-by-step how the crime took place based on factual accounts. Do not glorify.
+- **Investigation:** Detail how the police or CBI tracked down clues and caught the culprit.
+- **Verdict/Outcome:** Describe the final court verdict or legal outcome.
+- **Moral closing:** Provide a brief reflection on safety or justice (e.g. "ಈ ಲೋಕದಲ್ಲಿ..." type ending in Kannada).
+- Select or base the narrative on one real famous true crime story set in India (choose a recent famous heist, cyber fraud, murder mystery, or historical detective case).
+"""
+        elif slot_number == 3:
+            # Slot 3: Evening News
+            news_text = self._format_news_for_prompt(news_data)
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 3 — EVENING NEWS (Evening Update)
+- **Reference Channels:** Suvarna News Kannada, Zee Kannada News, ABP Desam (warm tones, afternoon energy)
+- **Visual Cue Style:** City skyline at midday, business charts, stock market graphs, sports stadiums, scoreboards.
+- **Narrative Style:** Professional, updates on sports, technology, business, global and Karnataka stories.
+- **Narration Duration:** 6-10 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- The script must open differently from Slot 1: "ಸಂಜೆ ಆಯಿತು, ಟೆಕ್ ಟೇಲ್ಸ್ ಗೆ ಮತ್ತೆ ಏಕ ಬಾರಿ ಸ್ವಾಗತ! ಈ ಸರಿಯಾಗಿ ಹೇಳ್ತೀನಿ ಇವತ್ತು ಅಂತರ ಪ್ರಧಾನ..." (or equivalent Kannada translation welcoming viewers to the evening update).
+- Select 4 to 6 stories from the news data below. Focus on business/economy, sports, entertainment, technology, or global updates.
+- **CRITICAL:** Cross-check and do NOT duplicate stories that would be typical morning breaking news (Slot 1).
+- **Did You Know Segment:** Include one interesting "Did You Know / Today's Fact" segment as the final section before sign-off.
+- The script must end with a subscribe prompt.
+
+## TODAY'S NEWS DATA:
+{news_text}
+"""
+        elif slot_number == 4:
+            # Slot 4: Viral Entertainment
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 4 — VIRAL ENTERTAINMENT
+- **Reference Channels:** MostlySane, Round2Hell, Trakin Tech, Mythpat (bright, colorful, energetic)
+- **Visual Cue Style:** Meme graphics, reaction-face visuals, colorful overlay text cues, excited face expressions.
+- **Narrative Style:** High energy, comedic, conversational, and reaction-based.
+- **Narration Duration:** 5-10 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- **Hook:** Start with a high-energy hook (e.g., "ಇವತ್ತಿನ ಅತ್ಯಂತ ವೈರಲ್ ವಿಡಿಯೋ ನೋಡಿದ್ದೀರಾ? ಇಲ್ಲದಿದ್ದರೆ ಪರವಾಗಿಲ್ಲ, ನಾವು ಹೇಳ್ತೀವಿ!" or equivalent Kannada).
+- **Context:** Select a trending movie trailer, viral meme trend, comedy skit, or viral moment in India, and explain why everyone is talking about it.
+- **Reaction/Commentary:** Share your channel's original humorous reaction, review, or inspired commentary.
+- **Audience Engagement:** Ask the viewers to comment their thoughts (e.g., "ನಿಮ್ಮ ಅನಿಸಿಕೆಯನ್ನು ಕಮೆಂಟ್ ಮಾಡಿ!").
+"""
+        elif slot_number == 5:
+            # Slot 5: Social Media Buzz
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 5 — SOCIAL MEDIA BUZZ
+- **Reference Channels:** Dhruv Rathee, Sochta India, Revolver Rani (explainer, balanced dual-view)
+- **Visual Cue Style:** Mobile phone mockups showing social media layouts, notification icons, trending graphs, split screens showing both sides of a debate.
+- **Narrative Style:** Analytical, balanced, explanatory.
+- **Narration Duration:** 6-9 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- **Hook:** Start with a catchy hook (e.g., "ಇವತ್ತು ಸೋಷಿಯಲ್ ಮೀಡಿಯಾದಲ್ಲಿ ಏನಾಗ್ತಿದೆ? ಎಲ್ಲರ ಫೋನ್ ಕೂಡ ಬಿಸಿಯಾಗಿದೆ..." or equivalent Kannada).
+- **Show the Trend:** Select a viral social controversy, a tweet that blew up, or a major reel/ Shorts trend, and explain what happened and who was involved.
+- **Reactions:** Show a balanced, dual-sided view of the public's and internet's reactions.
+- **Analysis:** Discuss what this trend shows about today's society or digital culture.
+- **Call to Action:** Prompt viewers to discuss and share.
+"""
+        elif slot_number == 6:
+            # Slot 6: Devotional Stories
+            # Get the active day
+            day_number = (datetime.now(config.IST).day - 1) % 30 + 1
+            story = DEVOTIONAL_CALENDAR[day_number - 1]
+            
+            prompt = base_instructions + f"""
+## SLOT SPECIFICS: SLOT 6 — DEVOTIONAL STORIES (Krishna & Indian Gods)
+- **Reference Channels:** Spiritual Talks, Mahabharat Stories, ShriKrishna Katha, Bhakti Sagar (saffron/gold themes, soft glows)
+- **Visual Cue Style:** Divine paintings, temple bells, holy fire, lotuses, glowing icons of deities (Krishna with flute, Shiva meditating, divine rays).
+- **Narrative Style:** Slow, peaceful, respectful, and story-telling (katha) tone.
+- **Narration Duration:** 8-15 minutes total.
+
+## SCRIPT FORMAT REQUIREMENTS:
+- **Opening:** Start with a Sanskrit devotional shloka or mantra relevant to the deity ({story['deity']}), followed by its meaning in Kannada.
+- **Story Introduction:** Introduce today's katha: "{story['title']}".
+- **Narration:** Write a slow, detailed, and respectful katha of "{story['title']}" based on {story['source']}. Tell the story of {story['focus']} using rich Kannada narration.
+- **Life Lesson:** Dedicate a section explaining: "ಈ ಕಥೆಯಿಂದ ನಾವು ಕಲಿಯಬೇಕಾದ ನೀತಿಪಾಠವೇನು?" (What life lesson/moral do we learn from this story?).
+- **Closing:** End with a respectful devotional chant (e.g., "ಜೈ ಶ್ರೀ ಕೃಷ್ಣ" / "ಹರ ಹರ ಮಹಾದೇವ" depending on the deity {story['deity']}) and a subscribe prompt.
+"""
+        else:
+            # Fallback
+            prompt = base_instructions + f"\n## BULLETINS\n{self._format_news_for_prompt(news_data)}"
+
         return prompt
 
     @staticmethod

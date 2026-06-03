@@ -18,6 +18,11 @@ Dependencies:
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import os
 import logging
+import re
+import time
+import urllib.request
+import urllib.parse
+import json
 from datetime import datetime
 
 try:
@@ -119,32 +124,186 @@ class ThumbnailMaker:
             self.width, self.height, self.channel_name,
         )
 
+    def _search_pexels(self, query: str) -> Optional[str]:
+        """Search Pexels API for a stock photo matching the query and download it."""
+        api_key = ""
+        if config and hasattr(config, "PEXELS_API_KEY") and config.PEXELS_API_KEY:
+            api_key = config.PEXELS_API_KEY
+        if not api_key:
+            api_key = os.environ.get("PEXELS_API_KEY", "")
+            
+        if not api_key:
+            logger.warning("Pexels API key is not configured. Skipping Pexels image search.")
+            return None
+            
+        try:
+            url = f"https://api.pexels.com/v1/search?query={urllib.parse.quote(query)}&per_page=1"
+            req = urllib.request.Request(url)
+            req.add_header("Authorization", api_key)
+            req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            
+            logger.info("Searching Pexels for keyword: '%s'", query)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_data = json.loads(response.read().decode())
+                photos = res_data.get("photos", [])
+                if photos:
+                    photo_url = photos[0].get("src", {}).get("large2x") or photos[0].get("src", {}).get("large")
+                    if photo_url:
+                        logger.info("Found Pexels photo: %s", photo_url)
+                        temp_dir = config.PATHS.get("temp", "temp/") if config else "temp/"
+                        os.makedirs(temp_dir, exist_ok=True)
+                        temp_path = os.path.join(temp_dir, f"pexels_{int(time.time())}.jpg")
+                        
+                        # Download image
+                        img_req = urllib.request.Request(photo_url)
+                        img_req.add_header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                        with urllib.request.urlopen(img_req, timeout=15) as img_response:
+                            with open(temp_path, "wb") as f:
+                                f.write(img_response.read())
+                        return temp_path
+                else:
+                    logger.warning("No Pexels photo found for query '%s'", query)
+        except Exception as e:
+            logger.warning("Error fetching/downloading Pexels image for query '%s': %s", query, e)
+            
+        return None
+
+    def _get_slot_styles(self, slot_num: int) -> dict:
+        """Get slot-specific color schemes and layouts."""
+        # Palettes: gradient_start, gradient_end, accent, badge_text, badge_bg, text_color
+        styles = {
+            1: {
+                "gradient_start": (80, 5, 5),      # Dark Red
+                "gradient_end": (15, 0, 0),        # Near Black
+                "accent": (255, 30, 30),           # Bright Red
+                "badge_text": "LIVE",
+                "badge_bg": (220, 20, 20),
+                "text_color": (255, 255, 255),
+                "title_label": "BREAKING NEWS"
+            },
+            2: {
+                "gradient_start": (45, 0, 0),      # Dark Crimson
+                "gradient_end": (10, 10, 10),      # Jet Black
+                "accent": (180, 10, 10),           # Deep Red
+                "badge_text": "CRIME STORY",
+                "badge_bg": (180, 10, 10),
+                "text_color": (255, 200, 200),
+                "title_label": "TRUE CRIME CASE"
+            },
+            3: {
+                "gradient_start": (100, 35, 0),    # Dark Orange
+                "gradient_end": (30, 15, 0),       # Dark Brownish Orange
+                "accent": (255, 102, 0),           # Orange
+                "badge_text": "NEWS UPDATE",
+                "badge_bg": (255, 102, 0),
+                "text_color": (255, 255, 255),
+                "title_label": "EVENING BULLET"
+            },
+            4: {
+                "gradient_start": (85, 0, 51),     # Deep Pink
+                "gradient_end": (0, 51, 68),       # Dark Cyan
+                "accent": (255, 0, 127),           # Neon Pink
+                "badge_text": "VIRAL!",
+                "badge_bg": (255, 0, 127),
+                "text_color": (0, 240, 255),
+                "title_label": "TRENDING NOW"
+            },
+            5: {
+                "gradient_start": (0, 34, 68),     # Twitter Blue
+                "gradient_end": (5, 5, 21),        # Dark Navy
+                "accent": (0, 136, 204),           # Bright Blue
+                "badge_text": "BUZZ",
+                "badge_bg": (0, 136, 204),
+                "text_color": (255, 255, 255),
+                "title_label": "SOCIAL MEDIA EXPLAINER"
+            },
+            6: {
+                "gradient_start": (120, 30, 0),    # Saffron
+                "gradient_end": (45, 15, 0),       # Deep Gold
+                "accent": (255, 153, 0),           # Gold
+                "badge_text": "DEVOTIONAL",
+                "badge_bg": (255, 120, 0),
+                "text_color": (255, 215, 0),       # Gold
+                "title_label": "SACRED KATHA"
+            }
+        }
+        return styles.get(slot_num, styles[1])
+
     def create(self, script_data: dict, output_path: str) -> str:
         """
         Wrapper to generate thumbnail from script data, compatible with the master orchestrator.
         """
-        sections = script_data.get("sections", [])
-        headline = ""
-        category = None
-
-        if sections:
-            headline = sections[0].get("headline", "")
-            category = sections[0].get("category", None)
-
+        slot_number = script_data.get("slot_number", 1)
+        headline = script_data.get("thumbnail_headline", "")
+        
         if not headline:
-            headline = script_data.get("title", "ಪ್ರಮುಖ ಸುದ್ದಿಗಳು")
+            sections = script_data.get("sections", [])
+            if sections:
+                headline = sections[0].get("headline", "")
+            if not headline:
+                headline = script_data.get("title", "ಪ್ರಮುಖ ಸುದ್ದಿಗಳು")
 
         if len(headline) > 80:
             headline = headline[:77] + "..."
 
-        badge = "LIVE"
+        # Determine Pexels search query
+        query = ""
+        # Try to extract English keywords
+        keywords = []
+        for sec in script_data.get("sections", []):
+            kw_list = sec.get("broll_keywords", [])
+            if isinstance(kw_list, list):
+                for kw in kw_list:
+                    if re.search(r'[a-zA-Z]', kw):
+                        keywords.append(kw)
+        if keywords:
+            seen = set()
+            unique_kws = [x for x in keywords if not (x in seen or seen.add(x))]
+            query = " ".join(unique_kws[:2])
+            
+        if not query:
+            defaults = {
+                1: "news studio desk",
+                2: "crime scene police",
+                3: "business stock market news",
+                4: "shocked face expression",
+                5: "social media buzz phone",
+                6: "indian temple priest"
+            }
+            query = defaults.get(slot_number, "news")
+            if slot_number == 6:
+                full_text = (script_data.get("title", "") + " " + script_data.get("description", "")).lower()
+                if "krishna" in full_text or "ಕೃಷ್ಣ" in full_text:
+                    query = "lord krishna painting"
+                elif "shiva" in full_text or "ಶಿವ" in full_text:
+                    query = "lord shiva statue"
+                elif "rama" in full_text or "ರಾಮ" in full_text:
+                    query = "lord rama statue"
+                elif "hanuman" in full_text or "ಹನುಮಾನ್" in full_text:
+                    query = "lord hanuman painting"
+                elif "devi" in full_text or "ದೇವಿ" in full_text:
+                    query = "goddess durga"
+                elif "ganesh" in full_text or "ಗಣೇಶ" in full_text:
+                    query = "lord ganesha"
 
-        return self.create_thumbnail(
-            headline=headline,
-            output_path=output_path,
-            category_color=category,
-            badge=badge,
-        )
+        # Search and download image
+        bg_image_path = self._search_pexels(query)
+        
+        try:
+            return self.create_thumbnail(
+                headline=headline,
+                output_path=output_path,
+                slot_number=slot_number,
+                bg_image_path=bg_image_path
+            )
+        finally:
+            # Clean up temp image
+            if bg_image_path and os.path.exists(bg_image_path):
+                try:
+                    os.remove(bg_image_path)
+                    logger.debug("Cleaned up temp Pexels background image: %s", bg_image_path)
+                except Exception as e:
+                    logger.warning("Failed to remove temp Pexels image: %s", e)
 
     def create_thumbnail(
         self,
@@ -152,23 +311,11 @@ class ThumbnailMaker:
         output_path: str,
         category_color: str = None,
         badge: str = None,
+        slot_number: int = 1,
+        bg_image_path: str = None,
     ) -> str:
         """
         Generate a complete YouTube thumbnail image.
-
-        Args:
-            headline: Main headline text (supports Kannada Unicode).
-            output_path: File path to save the thumbnail JPEG.
-            category_color: Optional category key for color scheme
-                           ('karnataka', 'national', 'international', etc.)
-            badge: Optional badge text ('LIVE', 'BREAKING', etc.)
-
-        Returns:
-            Absolute path to the saved thumbnail file.
-
-        Raises:
-            ValueError: If headline is empty.
-            IOError: If the file cannot be saved.
         """
         if not headline or not headline.strip():
             raise ValueError("Headline text cannot be empty.")
@@ -178,84 +325,88 @@ class ThumbnailMaker:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        logger.info("Creating thumbnail: '%s'", headline[:50])
+        logger.info("Creating thumbnail (Slot %d): '%s'", slot_number, headline[:50])
+
+        style = self._get_slot_styles(slot_number)
 
         # ── Step 1: Create gradient background ────────────────────────────
         img = self._create_gradient(
             self.width, self.height,
-            COLOR_GRADIENT_START, COLOR_GRADIENT_END,
+            style["gradient_start"], style["gradient_end"],
         )
 
         # Convert to RGBA for transparency support
         img = img.convert("RGBA")
+        
+        # ── Step 2: Blend Pexels stock photo ──────────────────────────────
+        if bg_image_path and os.path.exists(bg_image_path):
+            try:
+                bg_img = Image.open(bg_image_path).convert("RGBA")
+                
+                # Crop and resize to 60% width of canvas
+                target_w = int(self.width * 0.6)
+                target_h = self.height
+                
+                bg_w, bg_h = bg_img.size
+                ratio = max(target_w / bg_w, target_h / bg_h)
+                new_size = (int(bg_w * ratio), int(bg_h * ratio))
+                bg_img = bg_img.resize(new_size, Image.Resampling.LANCZOS)
+                
+                # Crop center
+                left = (bg_img.size[0] - target_w) // 2
+                top = (bg_img.size[1] - target_h) // 2
+                bg_img = bg_img.crop((left, top, left + target_w, top + target_h))
+                
+                # Gradient mask for smooth horizontal fade
+                mask = Image.new("L", (target_w, target_h), 255)
+                for x in range(target_w):
+                    if x < 180:
+                        alpha = int((x / 180) * 255)
+                        for y in range(target_h):
+                            mask.putpixel((x, y), alpha)
+                            
+                img.paste(bg_img, (self.width - target_w, 0), mask=mask)
+                logger.info("Blended Pexels background successfully.")
+            except Exception as e:
+                logger.warning("Failed to blend background image: %s", e)
+
         draw = ImageDraw.Draw(img)
 
-        # ── Step 2: Add decorative elements ───────────────────────────────
-        # Diagonal accent lines for visual interest
-        overlay = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-        overlay_draw = ImageDraw.Draw(overlay)
-
-        # Subtle diagonal stripes
-        for i in range(0, self.width + self.height, 80):
-            overlay_draw.line(
-                [(i, 0), (i - self.height, self.height)],
-                fill=(255, 255, 255, 8),
-                width=2,
-            )
-
-        img = Image.alpha_composite(img, overlay)
-        draw = ImageDraw.Draw(img)
-
-        # ── Step 3: Add semi-transparent banner at bottom ─────────────────
-        banner_color = COLOR_BANNER
-        if category_color and category_color in CATEGORY_COLORS:
-            banner_color = CATEGORY_COLORS[category_color]["banner"]
-
-        banner_overlay = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-        banner_draw = ImageDraw.Draw(banner_overlay)
-
-        banner_top = self.height - 250
-        banner_draw.rectangle(
-            [(0, banner_top), (self.width, self.height)],
-            fill=banner_color,
-        )
-
-        # Accent line above banner
-        accent_color = (255, 50, 50)
-        if category_color and category_color in CATEGORY_COLORS:
-            accent_color = CATEGORY_COLORS[category_color]["accent"]
-        banner_draw.rectangle(
-            [(0, banner_top - 4), (self.width, banner_top)],
-            fill=(*accent_color, 255) if len(accent_color) == 3 else accent_color,
-        )
-
-        img = Image.alpha_composite(img, banner_overlay)
-        draw = ImageDraw.Draw(img)
-
-        # ── Step 4: Add headline text with auto-sizing ────────────────────
-        headline_area_width = self.width - 80  # 40px padding each side
+        # ── Step 3: Draw text on the left side ────────────────────────────
+        text_area_width = int(self.width * 0.48) # Limit text to left half
         font, font_size = self._fit_text(
             draw, headline, self.font_path,
-            max_width=headline_area_width,
-            max_font_size=70,
-            min_font_size=30,
+            max_width=text_area_width,
+            max_font_size=65,
+            min_font_size=32,
         )
-
-        # Calculate text position (centered in banner area)
-        text_x = 40
-        text_y = banner_top + 30
-
-        # Draw text with shadow for readability
+        
+        wrapped_text = self._wrap_text(draw, headline, font, text_area_width)
+        
+        # Calculate text height for vertical centering
+        bbox = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=8)
+        text_h = bbox[3] - bbox[1]
+        
+        text_x = 60
+        text_y = (self.height - text_h) // 2
+        if text_y < 130:
+            text_y = 130
+            
+        shadow_color = (0, 0, 0)
+        if slot_number == 6:
+            shadow_color = (60, 20, 0)
+            
         self._add_text_with_shadow(
             draw,
             position=(text_x, text_y),
-            text=headline,
+            text=wrapped_text,
             font=font,
-            fill=COLOR_TEXT_WHITE,
-            shadow_color=COLOR_TEXT_SHADOW,
+            fill=style["text_color"],
+            shadow_color=shadow_color,
+            shadow_offset=4,
         )
 
-        # ── Step 5: Add channel name watermark ────────────────────────────
+        # ── Step 4: Add channel name watermark ────────────────────────────
         watermark_font = self._load_font(20)
         watermark_text = self.channel_name
 
@@ -282,58 +433,56 @@ class ThumbnailMaker:
             fill=(255, 255, 255, 200),
         )
 
-        # ── Step 6: Add LIVE / BREAKING badge ─────────────────────────────
-        if badge:
-            badge_text = badge.upper()
-            badge_font = self._load_font(28)
+        # ── Step 5: Add slot-specific badge ─────────────────────────────
+        badge_text = badge.upper() if badge else style["badge_text"]
+        badge_font = self._load_font(24)
 
-            b_bbox = draw.textbbox((0, 0), badge_text, font=badge_font)
-            b_width = b_bbox[2] - b_bbox[0]
-            b_height = b_bbox[3] - b_bbox[1]
+        b_bbox = draw.textbbox((0, 0), badge_text, font=badge_font)
+        b_width = b_bbox[2] - b_bbox[0]
+        b_height = b_bbox[3] - b_bbox[1]
 
-            badge_x = 20
-            badge_y = 20
-            padding = 12
+        badge_x = 60
+        badge_y = 35
+        padding = 10
 
-            # Badge background color
-            if "LIVE" in badge_text:
-                bg_color = COLOR_BADGE_RED
-            elif "BREAKING" in badge_text:
-                bg_color = COLOR_BADGE_RED
-            else:
-                bg_color = COLOR_BADGE_YELLOW
+        bg_color = style["badge_bg"]
 
-            # Draw badge background (rounded rectangle via two rects + circles)
-            badge_bg = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
-            badge_bg_draw = ImageDraw.Draw(badge_bg)
-            badge_bg_draw.rounded_rectangle(
-                [
-                    (badge_x, badge_y),
-                    (badge_x + b_width + padding * 2, badge_y + b_height + padding * 2),
-                ],
-                radius=8,
-                fill=(*bg_color, 230),
-            )
-            img = Image.alpha_composite(img, badge_bg)
-            draw = ImageDraw.Draw(img)
+        badge_bg = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
+        badge_bg_draw = ImageDraw.Draw(badge_bg)
+        
+        # Check if badge needs a border (like Slot 2 crime story)
+        border_color = style.get("badge_border", None)
+        outline_args = {"outline": border_color, "width": 2} if border_color else {}
+        
+        badge_bg_draw.rounded_rectangle(
+            [
+                (badge_x, badge_y),
+                (badge_x + b_width + padding * 2, badge_y + b_height + padding * 2),
+            ],
+            radius=6,
+            fill=(*bg_color, 230) if len(bg_color) == 3 else bg_color,
+            **outline_args
+        )
+        img = Image.alpha_composite(img, badge_bg)
+        draw = ImageDraw.Draw(img)
 
-            # Draw badge text
-            draw.text(
-                (badge_x + padding, badge_y + padding),
-                badge_text,
-                font=badge_font,
-                fill=COLOR_TEXT_WHITE,
-            )
+        # Draw badge text
+        draw.text(
+            (badge_x + padding, badge_y + padding),
+            badge_text,
+            font=badge_font,
+            fill=COLOR_TEXT_WHITE,
+        )
 
-        # ── Step 7: Add date stamp ────────────────────────────────────────
+        # ── Step 6: Add date stamp ────────────────────────────────────────
         date_text = datetime.now().strftime("%d %b %Y")
         date_font = self._load_font(18)
 
         d_bbox = draw.textbbox((0, 0), date_text, font=date_font)
         d_width = d_bbox[2] - d_bbox[0]
 
-        date_x = self.width - d_width - 20
-        date_y = self.height - 40
+        date_x = 60
+        date_y = self.height - 50
 
         # Date background
         date_bg = Image.new("RGBA", (self.width, self.height), (0, 0, 0, 0))
@@ -352,10 +501,10 @@ class ThumbnailMaker:
             fill=(200, 200, 200, 255),
         )
 
-        # ── Step 8: Save as high-quality JPEG ─────────────────────────────
+        # ── Step 7: Save as high-quality JPEG ─────────────────────────────
         # Convert RGBA → RGB for JPEG output
         final = Image.new("RGB", img.size, (0, 0, 0))
-        final.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+        final.paste(img, mask=img.split()[3])
 
         try:
             final.save(output_path, "JPEG", quality=JPEG_QUALITY, optimize=True)

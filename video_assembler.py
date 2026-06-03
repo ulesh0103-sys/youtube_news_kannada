@@ -385,8 +385,9 @@ class VideoAssembler:
         try:
             sections = script_data.get("sections", [])
             title = script_data.get("title", "News Update")
+            slot_number = script_data.get("slot_number", 1)
             
-            logger.info("Starting section-by-section video assembly for %d sections...", len(sections))
+            logger.info("Starting section-by-section video assembly for slot %d (%d sections)...", slot_number, len(sections))
             
             # Initialize VoiceGenerator for section-level audio/subtitle generation
             voice_gen = VoiceGenerator(language="kannada")
@@ -434,7 +435,7 @@ class VideoAssembler:
                     self._loop_video_to_duration(concat_sec_path, sec_duration, sec_video_base)
                 else:
                     logger.warning("No B-roll clips downloaded for section %d. Creating title card.", i)
-                    self._create_title_card(headline, sec_duration, sec_video_base)
+                    self._create_title_card(headline, sec_duration, sec_video_base, slot_number)
                 
                 current_sec_video = sec_video_base
                 
@@ -446,7 +447,8 @@ class VideoAssembler:
                     duration = max(1.0, sec_duration - 1.0)
                     self._add_lower_third(
                         current_sec_video, headline,
-                        start_time, duration, lt_output
+                        start_time, duration, lt_output,
+                        slot_number
                     )
                     current_sec_video = lt_output
                 
@@ -482,9 +484,29 @@ class VideoAssembler:
             current_video = concat_path
             
             # 9. Add background music across the entire concatenated video
+            slot_music_map = {
+                1: "morning_news.mp3",
+                2: "crime_thriller.mp3",
+                3: "evening_news.mp3",
+                4: "viral_entertainment.mp3",
+                5: "social_buzz.mp3",
+                6: "devotional_stories.mp3",
+            }
+            music_filename = slot_music_map.get(slot_number, "background_music.mp3")
             music_path = os.path.join(
-                self.paths.get("assets", "assets/"), "background_music.mp3"
+                self.paths.get("music", "assets/music/"), music_filename
             )
+            
+            # Fallback chains
+            if not os.path.exists(music_path):
+                music_path = os.path.join(
+                    self.paths.get("music", "assets/music/"), "background_music.mp3"
+                )
+            if not os.path.exists(music_path):
+                music_path = os.path.join(
+                    self.paths.get("assets", "assets/"), "background_music.mp3"
+                )
+                
             if os.path.exists(music_path):
                 music_output = os.path.join(assembly_temp, "final_with_music.mp4")
                 self._mix_audio(current_video, music_path, music_output, 0.15)
@@ -508,7 +530,7 @@ class VideoAssembler:
                 logger.warning("Failed to cleanup temp files: %s", str(e))
 
     def _create_title_card(
-        self, text: str, duration: float, output_path: str
+        self, text: str, duration: float, output_path: str, slot_number: int = 1
     ) -> str:
         """
         Create a title card video segment with text on a dark gradient background.
@@ -519,6 +541,7 @@ class VideoAssembler:
             text: Title/headline text (supports Kannada Unicode).
             duration: Duration of the title card in seconds.
             output_path: Path to save the title card video.
+            slot_number: Active slot number for custom styling.
 
         Returns:
             Path to the created title card video.
@@ -530,21 +553,26 @@ class VideoAssembler:
         # Escape special characters for FFmpeg drawtext filter
         escaped_text = self._escape_ffmpeg_text(text)
 
-        # Build FFmpeg command for gradient background + centered text
-        # Using color source + drawtext filter
+        # Select background color based on slot
+        slot_bg_colors = {
+            1: "#400000",       # Dark Red
+            2: "#150000",       # Near Black / Dark Crimson
+            3: "#502000",       # Dark Orange
+            4: "#400030",       # Dark Pink
+            5: "#001530",       # Dark Blue
+            6: "#503000",       # Saffron Gold / Dark Orange-Brown
+        }
+        bg_color = slot_bg_colors.get(slot_number, "#0a0a2e")
+
+        # Build FFmpeg command for background color + centered text
         cmd = [
             "ffmpeg", "-y",
             "-f", "lavfi",
             "-i", (
-                f"color=c=#0a0a2e:s={self.width}x{self.height}:d={duration}:r={self.fps},"
+                f"color=c={bg_color}:s={self.width}x{self.height}:d={duration}:r={self.fps},"
                 f"format=yuv420p"
             ),
             "-vf", (
-                # Dark gradient overlay using geq filter
-                f"geq=r='clip(p(X,Y)*0.7 + X*0.02, 0, 255)'"
-                f":g='clip(p(X,Y)*0.5, 0, 255)'"
-                f":b='clip(p(X,Y)*0.9 - X*0.01, 0, 255)',"
-                # Main title text
                 f"drawtext=text='{escaped_text}'"
                 f"{font_opt}"
                 f":fontsize=56"
@@ -758,6 +786,7 @@ class VideoAssembler:
         start_time: float,
         duration: float,
         output_path: str,
+        slot_number: int = 1,
     ) -> str:
         """
         Add a lower-third text overlay banner to the video.
@@ -771,6 +800,7 @@ class VideoAssembler:
             start_time: When to show the overlay (seconds).
             duration: How long to show the overlay (seconds).
             output_path: Output video path.
+            slot_number: Active slot number for custom styling.
 
         Returns:
             Path to the output video.
@@ -781,17 +811,31 @@ class VideoAssembler:
 
         end_time = start_time + duration
 
-        # Lower-third: semi-transparent black bar + white text
+        # Select colors based on slot number
+        # Red: Slot 1, Crimson/Black: Slot 2, Orange: Slot 3, Pink/Cyan: Slot 4, Social blue: Slot 5, Saffron/Gold: Slot 6
+        slot_colors = {
+            1: {"box": "0xCC1111@0.85", "text": "white"},
+            2: {"box": "0x150000@0.9", "text": "0xFFCCCC"},
+            3: {"box": "0xFF6600@0.85", "text": "white"},
+            4: {"box": "0xE51400@0.85", "text": "white"},
+            5: {"box": "0x0088CC@0.85", "text": "white"},
+            6: {"box": "0xFF9900@0.85", "text": "0xFFEE55"},
+        }
+        colors = slot_colors.get(slot_number, {"box": "black@0.7", "text": "white"})
+        box_color = colors["box"]
+        font_color = colors["text"]
+
+        # Lower-third: semi-transparent custom slot bar + text
         drawbox_filter = (
             f"drawbox=x=0:y=ih-120:w=iw:h=120"
-            f":color=black@0.7:t=fill"
+            f":color={box_color}:t=fill"
             f":enable='between(t,{start_time},{end_time})'"
         )
         drawtext_filter = (
             f"drawtext=text='{escaped_text}'"
             f"{font_opt}"
             f":fontsize=36"
-            f":fontcolor=white"
+            f":fontcolor={font_color}"
             f":x=40"
             f":y=h-90"
             f":shadowcolor=black:shadowx=2:shadowy=2"
